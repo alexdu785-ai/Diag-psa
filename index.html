@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>DIAG PSA</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+background: #0d0f12;
+color: #e2e8f0;
+font-family: ‘Inter’, sans-serif;
+height: 100%;
+overflow: hidden;
+}
+
+.app {
+display: flex;
+flex-direction: column;
+height: 100vh;
+height: -webkit-fill-available;
+max-width: 800px;
+margin: 0 auto;
+}
+
+.header {
+background: #0d0f12;
+border-bottom: 1px solid #1e2530;
+padding: 12px 16px;
+flex-shrink: 0;
+display: flex;
+align-items: center;
+justify-content: space-between;
+}
+
+.header-left { display: flex; align-items: center; gap: 10px; }
+
+.logo {
+width: 36px; height: 36px;
+background: linear-gradient(135deg, #e8a020, #ff6b35);
+border-radius: 8px;
+display: flex; align-items: center; justify-content: center;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px; font-weight: 500; color: #000;
+}
+
+.header-title { font-size: 15px; font-weight: 600; color: #f1f5f9; }
+.header-sub { font-size: 11px; color: #4a5568; font-family: ‘JetBrains Mono’, monospace; }
+
+.status { display: flex; align-items: center; gap: 6px; font-family: ‘JetBrains Mono’, monospace; font-size: 11px; color: #48bb78; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #48bb78; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.case-banner {
+background: #111418;
+border-bottom: 1px solid #1e2530;
+padding: 8px 16px;
+flex-shrink: 0;
+display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+
+.case-label { font-family: ‘JetBrains Mono’, monospace; font-size: 9px; color: #e8a020; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+.case-vehicle { font-size: 13px; font-weight: 500; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.case-vehicle.empty { color: #4a5568; font-weight: 400; font-size: 12px; }
+
+.btn-diag {
+background: transparent; border: 1px solid #2d3748; color: #4a5568;
+font-family: ‘JetBrains Mono’, monospace; font-size: 10px;
+padding: 5px 10px; border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.btn-diag:active { border-color: #48bb78; color: #48bb78; }
+
+.chat {
+flex: 1; overflow-y: auto; padding: 16px;
+display: flex; flex-direction: column; gap: 12px;
+-webkit-overflow-scrolling: touch;
+}
+.chat::-webkit-scrollbar { width: 3px; }
+.chat::-webkit-scrollbar-thumb { background: #2d3748; }
+
+.msg { display: flex; gap: 10px; animation: msgIn 0.2s ease; }
+@keyframes msgIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+.msg.user { flex-direction: row-reverse; }
+
+.avatar {
+width: 28px; height: 28px; border-radius: 6px;
+display: flex; align-items: center; justify-content: center;
+font-family: ‘JetBrains Mono’, monospace; font-size: 10px; font-weight: 500;
+flex-shrink: 0; margin-top: 2px;
+}
+.msg.assistant .avatar { background: linear-gradient(135deg, #e8a020, #ff6b35); color: #000; }
+.msg.user .avatar { background: #1a2332; border: 1px solid #2d3748; color: #64748b; }
+
+.bubble {
+max-width: 84%; padding: 10px 14px; border-radius: 10px;
+font-size: 14px; line-height: 1.65;
+}
+.msg.assistant .bubble { background: #151920; border: 1px solid #1e2a38; color: #cbd5e1; border-top-left-radius: 3px; }
+.msg.user .bubble { background: #1a3a5c; border: 1px solid #1e4a6e; color: #e2e8f0; border-top-right-radius: 3px; }
+
+.bubble p { margin: 3px 0; }
+.bubble p:first-child { margin-top: 0; }
+.bubble strong { color: #f1f5f9; font-weight: 600; }
+.bubble em { color: #e8a020; font-style: normal; font-weight: 500; }
+
+.bubble h2 {
+font-size: 12px; font-weight: 600; color: #e8a020;
+letter-spacing: 0.8px; text-transform: uppercase;
+margin: 12px 0 6px; padding-bottom: 5px;
+border-bottom: 1px solid #1e2a38;
+font-family: ‘JetBrains Mono’, monospace;
+}
+.bubble h2:first-child { margin-top: 0; }
+.bubble h3 { font-size: 12px; font-weight: 500; color: #63b3ed; margin: 8px 0 4px; }
+
+.bubble ul { list-style: none; padding: 0; margin: 5px 0; }
+.bubble ul li { padding: 2px 0 2px 14px; position: relative; color: #cbd5e1; }
+.bubble ul li::before { content: ‘›’; position: absolute; left: 2px; color: #e8a020; font-weight: 700; }
+.bubble ol { padding-left: 18px; margin: 5px 0; }
+.bubble ol li { padding: 2px 0; }
+
+.bubble hr { border: none; border-top: 1px solid #1e2a38; margin: 8px 0; }
+.bubble code { background: #0d0f12; color: #48bb78; font-family: ‘JetBrains Mono’, monospace; font-size: 12px; padding: 1px 5px; border-radius: 3px; border: 1px solid #1e2a38; }
+
+.bubble table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #1e2a38; }
+.bubble th { background: #0d1117; color: #e8a020; padding: 7px 10px; text-align: left; font-family: ‘JetBrains Mono’, monospace; font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid #1e2a38; }
+.bubble td { padding: 7px 10px; color: #cbd5e1; border-bottom: 1px solid #1a2030; }
+.bubble tr:last-child td { border-bottom: none; }
+
+.typing-dots { background: #151920; border: 1px solid #1e2a38; border-radius: 10px; border-top-left-radius: 3px; padding: 10px 14px; display: flex; gap: 5px; }
+.typing-dots span { width: 5px; height: 5px; border-radius: 50%; background: #e8a020; animation: bounce 1.2s infinite; }
+.typing-dots span:nth-child(2){animation-delay:0.2s} .typing-dots span:nth-child(3){animation-delay:0.4s}
+@keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:0.3} 30%{transform:translateY(-5px);opacity:1} }
+
+.input-area {
+background: #0d0f12; border-top: 1px solid #1e2530;
+padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+flex-shrink: 0;
+}
+
+.input-box {
+background: #111418; border: 1px solid #2d3748; border-radius: 10px;
+padding: 8px 12px; display: flex; gap: 8px; align-items: flex-end;
+margin-bottom: 8px; transition: border-color 0.15s;
+}
+.input-box:focus-within { border-color: #e8a020; }
+
+textarea {
+flex: 1; background: transparent; border: none; outline: none;
+color: #f1f5f9; font-family: ‘Inter’, sans-serif; font-size: 14px;
+resize: none; min-height: 20px; max-height: 120px; line-height: 1.5; padding: 2px 0;
+}
+textarea::placeholder { color: #374151; }
+
+.send-btn {
+width: 34px; height: 34px;
+background: linear-gradient(135deg, #e8a020, #ff6b35);
+border: none; border-radius: 7px; cursor: pointer;
+display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.send-btn:active { opacity: 0.75; }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.send-btn svg { width: 16px; height: 16px; fill: #000; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+background: transparent; border: 1px solid #1e2530; color: #4a5568;
+font-family: ‘JetBrains Mono’, monospace; font-size: 10px;
+padding: 4px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap;
+}
+.chip:active { border-color: #e8a020; color: #e8a020; }
+.chip.green:active { border-color: #48bb78; color: #48bb78; }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">PSA</div>
+      <div>
+        <div class="header-title">DIAG TECH</div>
+        <div class="header-sub">assistant diagnostic</div>
+      </div>
+    </div>
+    <div class="status"><div class="status-dot"></div>EN LIGNE</div>
+  </div>
+
+  <div class="case-banner">
+    <div style="min-width:0">
+      <div class="case-label">Panne en cours</div>
+      <div class="case-vehicle empty" id="caseVehicle">Aucun cas ouvert</div>
+    </div>
+    <button class="btn-diag" onclick="sendDiag()">DIAG →</button>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="msg assistant">
+      <div class="avatar">AI</div>
+      <div class="bubble">
+        <h2>🔧 Mode Diag PSA actif</h2>
+        <p>Envoyez votre premier cas :</p>
+        <ul>
+          <li><strong>1 ligne véhicule</strong> — modèle, moteur, km</li>
+          <li><strong>Codes défauts</strong> + statut permanent/intermittent</li>
+          <li><strong>Symptômes</strong> précis + conditions</li>
+          <li><strong>Ce que vous avez déjà testé</strong></li>
+        </ul>
+        <hr>
+        <p>Tapez <em>diag</em> pour clôturer et passer au cas suivant.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-box">
+      <textarea id="input" placeholder="Véhicule, codes défauts, symptômes..." rows="1"
+        onkeydown="handleKey(event)" oninput="resize(this)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="send()">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+    </div>
+    <div class="chips">
+      <span class="chip" onclick="chip('procédure officielle ')">procédure officielle</span>
+      <span class="chip" onclick="chip('valeurs live : ')">valeurs live</span>
+      <span class="chip" onclick="chip('symptôme : ')">symptôme</span>
+      <span class="chip" onclick="chip('déjà testé : ')">déjà testé</span>
+      <span class="chip green" onclick="sendDiag()">✓ diag</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const SYSTEM = `Tu es un formateur technique expert PSA (Peugeot, Citroën, DS, Opel/Vauxhall). Tu as une connaissance approfondie de tous les systèmes PSA : moteurs (EB2, EB2DT, EP6, EP6CDT, DV6, DV6C, DV6FC, DW10, DW12, BHZ, DV5R, DV5RC, HN05...), boîtes (BVM5/6, BVA AL4/AT6/EAT6/EAT8, BMP6), systèmes dépollution (FAP, SCR AdBlue, EGR), électronique (BSI, BSM, BSRF, CMM, CMP, VIN coding), réseaux CAN/LIN, et l'outil Diagbox avec ses paramètres live.
+
+RÈGLES ABSOLUES :
+1. Tant que l'utilisateur ne dit pas "diag", on reste sur la même panne.
+2. Quand il dit "diag", tu conclus en 2 lignes et tu te prépares pour la suivante.
+3. Panne clôturée = oubliée définitivement.
+
+MÉTHODE DE DIAGNOSTIC — LOGIQUE PSA STRICTE :
+Tu raisonnes toujours dans cet ordre :
+1. LECTURE DES CODES : Identifie le code pilote (cause racine) vs codes induits (conséquences). Explique toujours pourquoi un code est pilote ou induit.
+2. HIÉRARCHISATION PSA : Pour chaque code, liste les causes par ordre de fréquence RÉELLE sur le modèle concerné — pas de liste générique. Tiens compte du kilométrage, de la motorisation, des défauts connus PSA sur ce moteur spécifique.
+3. POINTS DE FAIBLESSE CONNUS : Cite explicitement les défauts de série, rappels, bulletins techniques PSA connus sur ce véhicule/moteur (ex: EB2 = courroie distribution, EP6 = joint de culasse/calamine, DV6C = EGR/FAP, DV5RC = SCR, AL4 = solénoïdes...).
+4. MESURES CIBLÉES : Ne demande que les mesures qui vont réellement discriminer les causes. Donne toujours les valeurs cibles PSA précises avec conditions de mesure.
+5. EXPLICATION PÉDAGOGIQUE : Explique POURQUOI tu orientes vers telle cause — le lien entre le symptôme, le code, et la physique du système. Le technicien doit comprendre le raisonnement, pas juste suivre une liste.
+
+FORMAT DES RÉPONSES :
+- 1ère ligne : rappel véhicule complet
+- ## pour les sections principales
+- Tableaux pour valeurs/comparaisons
+- **Gras** pour causes probables et valeurs critiques
+- Pose 3-4 questions maximum, ciblées et discriminantes
+- Termine chaque réponse par une conclusion claire : "→ Mon orientation : [cause probable]"
+
+STYLE : Formateur technique rigoureux. Tu expliques le raisonnement, tu justifies chaque orientation, tu formes autant que tu diagnostiques. Jamais de liste générique copiée-collée — toujours adapté au véhicule exact.
+
+Si demande "procédure officielle + [sujet]" → procédure PSA type TechInfo avec conditions exactes, valeurs cibles, et séquence précise.`;
+
+let msgs = [], vehicle = '', busy = false, apiKey = '';
+try { apiKey = localStorage.getItem('dpsa_k') || ''; } catch(e) {}
+
+function resize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function chip(t) {
+  const el = document.getElementById('input');
+  el.value += t; el.focus(); resize(el);
+}
+
+function sendDiag() {
+  document.getElementById('input').value = 'diag'; send();
+}
+
+function scrollBottom() {
+  const c = document.getElementById('chat'); c.scrollTop = c.scrollHeight;
+}
+
+function parseMarkdown(text) {
+  const lines = text.split('\n');
+  let html = '', inTable = false, tableRows = [], inUl = false, inOl = false;
+
+  function flushTable() {
+    if (!tableRows.length) return;
+    let t = '<table>';
+    let headerDone = false;
+    tableRows.forEach(row => {
+      if (row.match(/^\|?[-| :]+\|?$/)) return;
+      const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      if (!headerDone) {
+        t += '<tr>' + cells.map(c => `<th>${inline(c)}</th>`).join('') + '</tr>';
+        headerDone = true;
+      } else {
+        t += '<tr>' + cells.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>';
+      }
+    });
+    t += '</table>';
+    html += t; tableRows = []; inTable = false;
+  }
+
+  function flushLists() {
+    if (inUl) { html += '</ul>'; inUl = false; }
+    if (inOl) { html += '</ol>'; inOl = false; }
+  }
+
+  function inline(t) {
+    return t
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  }
+
+  lines.forEach(line => {
+    if (line.trim().startsWith('|')) {
+      flushLists(); inTable = true; tableRows.push(line.trim()); return;
+    } else if (inTable) { flushTable(); }
+
+    const l = inline(line);
+
+    if (l.match(/^## /)) { flushLists(); html += `<h2>${l.slice(3)}</h2>`; }
+    else if (l.match(/^### /)) { flushLists(); html += `<h3>${l.slice(4)}</h3>`; }
+    else if (l.trim() === '---') { flushLists(); html += '<hr>'; }
+    else if (line.match(/^[-•▸*] /)) {
+      if (!inUl) { if (inOl) { html += '</ol>'; inOl = false; } html += '<ul>'; inUl = true; }
+      html += `<li>${inline(line.replace(/^[-•▸*] /, ''))}</li>`;
+    }
+    else if (line.match(/^\d+\. /)) {
+      if (!inOl) { if (inUl) { html += '</ul>'; inUl = false; } html += '<ol>'; inOl = true; }
+      html += `<li>${inline(line.replace(/^\d+\. /, ''))}</li>`;
+    }
+    else if (line.trim() === '') { flushLists(); }
+    else { flushLists(); html += `<p>${l}</p>`; }
+  });
+
+  if (inTable) flushTable();
+  flushLists();
+  return html;
+}
+
+function addMsg(role, content) {
+  document.getElementById('typing')?.remove();
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const av = document.createElement('div');
+  av.className = 'avatar';
+  av.textContent = role === 'assistant' ? 'AI' : 'TEC';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.innerHTML = parseMarkdown(content);
+  div.appendChild(av); div.appendChild(bub);
+  chat.appendChild(div); scrollBottom();
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg assistant'; div.id = 'typing';
+  div.innerHTML = `<div class="avatar">AI</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div); scrollBottom();
+}
+
+function updateBanner(v) {
+  const el = document.getElementById('caseVehicle');
+  if (v) { el.textContent = v; el.className = 'case-vehicle'; }
+  else { el.textContent = 'Aucun cas ouvert'; el.className = 'case-vehicle empty'; }
+}
+
+async function send() {
+  const el = document.getElementById('input');
+  const text = el.value.trim();
+  if (!text || busy) return;
+
+  if (!apiKey) {
+    const k = prompt('Clé API Anthropic (sk-ant-...) :');
+    if (!k) return;
+    apiKey = k.trim();
+    try { localStorage.setItem('dpsa_k', apiKey); } catch(e) {}
+  }
+
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+  addMsg('user', text);
+  msgs.push({ role: 'user', content: text });
+
+  if (!vehicle) { vehicle = text.split('\n')[0].substring(0, 60); updateBanner(vehicle); }
+
+  el.value = ''; el.style.height = 'auto';
+
+  const isDiag = text.toLowerCase().trim() === 'diag';
+  if (isDiag) { vehicle = ''; updateBanner(''); }
+
+  showTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system: SYSTEM, messages: msgs })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      document.getElementById('typing')?.remove();
+      addMsg('assistant', `⚠️ Erreur : ${data.error.message}`);
+    } else {
+      const reply = data.content?.map(b => b.text || '').join('\n') || '⚠️ Réponse vide.';
+      msgs.push({ role: 'assistant', content: reply });
+      addMsg('assistant', reply);
+      if (isDiag) msgs = [];
+    }
+  } catch(err) {
+    document.getElementById('typing')?.remove();
+    addMsg('assistant', '⚠️ Erreur de connexion.');
+  }
+
+  busy = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+</script>
+
+</body>
+</html>
