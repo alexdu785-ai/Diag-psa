@@ -168,6 +168,16 @@ display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .send-btn svg { width: 16px; height: 16px; fill: #000; }
 
+.photo-btn {
+width: 34px; height: 34px;
+background: #1a2332; border: 1px solid #2d3748;
+border-radius: 7px; cursor: pointer;
+display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+color: #64748b; transition: all 0.15s;
+}
+.photo-btn:active { border-color: #e8a020; color: #e8a020; }
+.photo-btn svg { width: 16px; height: 16px; }
+
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
 background: transparent; border: 1px solid #1e2530; color: #4a5568;
@@ -219,9 +229,19 @@ padding: 4px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap;
   </div>
 
   <div class="input-area">
+    <div id="imgPreview" style="display:none; padding: 0 0 8px 0;">
+      <div style="position:relative; display:inline-block;">
+        <img id="imgThumb" style="max-height:80px; border-radius:6px; border:1px solid #2d3748;" />
+        <button onclick="clearImage()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;background:#e8a020;border:none;border-radius:50%;color:#000;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;">×</button>
+      </div>
+    </div>
     <div class="input-box">
       <textarea id="input" placeholder="Véhicule, codes défauts, symptômes..." rows="1"
         onkeydown="handleKey(event)" oninput="resize(this)"></textarea>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleImage(event)">
+      <button class="photo-btn" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M8 5l1.5-2h5L16 5"/></svg>
+      </button>
       <button class="send-btn" id="sendBtn" onclick="send()">
         <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
       </button>
@@ -248,7 +268,7 @@ MÉTHODE DE DIAGNOSTIC — LOGIQUE PSA STRICTE :
 Tu raisonnes toujours dans cet ordre :
 1. LECTURE DES CODES : Identifie le code pilote (cause racine) vs codes induits (conséquences). Explique toujours pourquoi un code est pilote ou induit.
 2. HIÉRARCHISATION PSA : Pour chaque code, liste les causes par ordre de fréquence RÉELLE sur le modèle concerné — pas de liste générique. Tiens compte du kilométrage, de la motorisation, des défauts connus PSA sur ce moteur spécifique.
-3. POINTS DE FAIBLESSE CONNUS : Cite explicitement les défauts de série, rappels, bulletins techniques PSA connus sur ce véhicule/moteur (ex: EB2 = courroie distribution, EP6 = joint de culasse/calamine, DV6C = EGR/FAP, DV5RC = SCR, AL4 = solénoïdes...).
+3. POINTS DE FAIBLESSE CONNUS ET DÉFAUTS RÉCURRENTS : Cite explicitement les défauts de série, rappels, bulletins techniques PSA connus sur ce véhicule/moteur. Pour chaque code diagnostiqué, indique systématiquement les causes les plus fréquentes en atelier sur ce modèle exact avec leur taux de récurrence relatif. Exemples de défauts récurrents à connaître : EB2/EB2DT = courroie distribution usure prématurée, tendeur hydraulique, capteur PMH ; EP6/EP6CDT = calamine soupapes admission, joint de culasse, vanne EGR encrassée, turbo wastegate ; DV6C/DV6FC = EGR colmaté, FAP saturé, vanne EGR, capteur pression rail, pompe HP ; DV5R/DV5RC = SCR vieilli, injecteur AdBlue, capteur NOx ; AL4 = solénoïdes EV1/EV3, filtre hydraulique, actionneur de passage ; EAT6/EAT8 = apprentissage embrayage, capteurs ; BSI = perte de configuration après batterie. Mentionne toujours si le défaut présenté correspond à un pattern récurrent connu en atelier PSA.
 4. MESURES CIBLÉES : Ne demande que les mesures qui vont réellement discriminer les causes. Donne toujours les valeurs cibles PSA précises avec conditions de mesure.
 5. EXPLICATION PÉDAGOGIQUE : Explique POURQUOI tu orientes vers telle cause — le lien entre le symptôme, le code, et la physique du système. Le technicien doit comprendre le raisonnement, pas juste suivre une liste.
 
@@ -265,7 +285,27 @@ STYLE : Formateur technique rigoureux. Tu expliques le raisonnement, tu justifie
 Si demande "procédure officielle + [sujet]" → procédure PSA type TechInfo avec conditions exactes, valeurs cibles, et séquence précise.`;
 
 let msgs = [], vehicle = '', busy = false, apiKey = '';
+let pendingImage = null;
 try { apiKey = localStorage.getItem('dpsa_k') || ''; } catch(e) {}
+
+function handleImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = { data: reader.result.split(',')[1], type: file.type };
+    document.getElementById('imgThumb').src = reader.result;
+    document.getElementById('imgPreview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function clearImage() {
+  pendingImage = null;
+  document.getElementById('imgPreview').style.display = 'none';
+  document.getElementById('imgThumb').src = '';
+}
 
 function resize(el) {
   el.style.height = 'auto';
@@ -350,7 +390,7 @@ function parseMarkdown(text) {
   return html;
 }
 
-function addMsg(role, content) {
+function addMsg(role, content, imgSrc) {
   document.getElementById('typing')?.remove();
   const chat = document.getElementById('chat');
   const div = document.createElement('div');
@@ -360,7 +400,17 @@ function addMsg(role, content) {
   av.textContent = role === 'assistant' ? 'AI' : 'TEC';
   const bub = document.createElement('div');
   bub.className = 'bubble';
-  bub.innerHTML = parseMarkdown(content);
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.style.cssText = 'max-width:100%;border-radius:6px;margin-bottom:6px;display:block;border:1px solid #2d3748;';
+    bub.appendChild(img);
+  }
+  if (content) {
+    const txt = document.createElement('div');
+    txt.innerHTML = parseMarkdown(content);
+    bub.appendChild(txt);
+  }
   div.appendChild(av); div.appendChild(bub);
   chat.appendChild(div); scrollBottom();
 }
@@ -382,7 +432,7 @@ function updateBanner(v) {
 async function send() {
   const el = document.getElementById('input');
   const text = el.value.trim();
-  if (!text || busy) return;
+  if ((!text && !pendingImage) || busy) return;
 
   if (!apiKey) {
     const k = prompt('Clé API Anthropic (sk-ant-...) :');
@@ -393,10 +443,26 @@ async function send() {
 
   busy = true;
   document.getElementById('sendBtn').disabled = true;
-  addMsg('user', text);
-  msgs.push({ role: 'user', content: text });
 
-  if (!vehicle) { vehicle = text.split('\n')[0].substring(0, 60); updateBanner(vehicle); }
+  // Affichage message utilisateur
+  const imgSrc = pendingImage ? `data:${pendingImage.type};base64,${pendingImage.data}` : null;
+  addMsg('user', text || '', imgSrc);
+
+  // Construction du message API
+  let userContent;
+  if (pendingImage) {
+    userContent = [
+      { type: 'image', source: { type: 'base64', media_type: pendingImage.type, data: pendingImage.data } },
+      { type: 'text', text: text || 'Analyse cette image Diagbox et commente ce que tu vois dans le contexte du diagnostic PSA en cours.' }
+    ];
+  } else {
+    userContent = text;
+  }
+
+  msgs.push({ role: 'user', content: userContent });
+  clearImage();
+
+  if (!vehicle && text) { vehicle = text.split('\n')[0].substring(0, 60); updateBanner(vehicle); }
 
   el.value = ''; el.style.height = 'auto';
 
