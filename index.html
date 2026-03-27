@@ -57,6 +57,69 @@ font-size: 11px; font-weight: 500; color: #000;
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #48bb78; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
+.btn-history {
+width: 32px; height: 32px;
+background: transparent; border: 1px solid #2d3748;
+border-radius: 6px; cursor: pointer;
+display: flex; align-items: center; justify-content: center;
+color: #64748b; transition: all 0.15s;
+}
+.btn-history:active { border-color: #e8a020; color: #e8a020; }
+.btn-history svg { width: 15px; height: 15px; }
+
+/* PANNEAU HISTORIQUE */
+.history-overlay {
+position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.history-overlay.open { opacity: 1; pointer-events: all; }
+
+.history-panel {
+position: fixed; top: 0; right: 0; bottom: 0; width: 88%; max-width: 380px;
+background: #0d0f12; border-left: 1px solid #1e2530;
+z-index: 101; transform: translateX(100%); transition: transform 0.25s ease;
+display: flex; flex-direction: column;
+}
+.history-panel.open { transform: translateX(0); }
+
+.history-header {
+padding: 16px; border-bottom: 1px solid #1e2530;
+display: flex; align-items: center; justify-content: space-between;
+}
+.history-title { font-family: ‘JetBrains Mono’, monospace; font-size: 12px; color: #e8a020; letter-spacing: 1px; text-transform: uppercase; }
+.btn-close-history {
+width: 28px; height: 28px; background: transparent; border: 1px solid #2d3748;
+border-radius: 5px; cursor: pointer; color: #64748b;
+display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+
+.history-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.history-list::-webkit-scrollbar { width: 3px; }
+.history-list::-webkit-scrollbar-thumb { background: #2d3748; }
+
+.history-item {
+background: #111418; border: 1px solid #1e2530; border-radius: 8px;
+padding: 12px; cursor: pointer; transition: border-color 0.15s;
+}
+.history-item:active { border-color: #e8a020; }
+.history-item-vehicle { font-size: 13px; font-weight: 500; color: #f1f5f9; margin-bottom: 4px; }
+.history-item-date { font-family: ‘JetBrains Mono’, monospace; font-size: 10px; color: #4a5568; margin-bottom: 6px; }
+.history-item-preview { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+.history-detail { flex: 1; overflow-y: auto; padding: 12px; display: none; flex-direction: column; gap: 8px; }
+.history-detail.active { display: flex; }
+.history-detail::-webkit-scrollbar { width: 3px; }
+.history-detail::-webkit-scrollbar-thumb { background: #2d3748; }
+
+.btn-back {
+background: transparent; border: 1px solid #2d3748; color: #64748b;
+font-family: ‘JetBrains Mono’, monospace; font-size: 10px;
+padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-bottom: 8px; align-self: flex-start;
+}
+.btn-back:active { border-color: #e8a020; color: #e8a020; }
+
+.history-empty { text-align: center; color: #4a5568; font-size: 13px; padding: 40px 20px; font-family: ‘JetBrains Mono’, monospace; }
+
 .case-banner {
 background: #111418;
 border-bottom: 1px solid #1e2530;
@@ -200,6 +263,9 @@ padding: 4px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap;
       </div>
     </div>
     <div class="status"><div class="status-dot"></div>EN LIGNE</div>
+    <button class="btn-history" onclick="openHistory()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </button>
   </div>
 
   <div class="case-banner">
@@ -256,6 +322,21 @@ padding: 4px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap;
   </div>
 </div>
 
+<!-- HISTORIQUE -->
+
+<div class="history-overlay" id="historyOverlay" onclick="closeHistory()"></div>
+<div class="history-panel" id="historyPanel">
+  <div class="history-header">
+    <span class="history-title">📋 Historique</span>
+    <button class="btn-close-history" onclick="closeHistory()">×</button>
+  </div>
+  <div class="history-list" id="historyList"></div>
+  <div class="history-detail" id="historyDetail">
+    <button class="btn-back" onclick="showHistoryList()">← Retour</button>
+    <div id="historyDetailContent"></div>
+  </div>
+</div>
+
 <script>
 const SYSTEM = `Tu es un formateur technique expert PSA (Peugeot, Citroën, DS, Opel/Vauxhall). Tu as une connaissance approfondie de tous les systèmes PSA : moteurs (EB2, EB2DT, EP6, EP6CDT, DV6, DV6C, DV6FC, DW10, DW12, BHZ, DV5R, DV5RC, HN05...), boîtes (BVM5/6, BVA AL4/AT6/EAT6/EAT8, BMP6), systèmes dépollution (FAP, SCR AdBlue, EGR), électronique (BSI, BSM, BSRF, CMM, CMP, VIN coding), réseaux CAN/LIN, et l'outil Diagbox avec ses paramètres live.
 
@@ -286,7 +367,84 @@ Si demande "procédure officielle + [sujet]" → procédure PSA type TechInfo av
 
 let msgs = [], vehicle = '', busy = false, apiKey = '';
 let pendingImage = null;
+let history = [];
 try { apiKey = localStorage.getItem('dpsa_k') || ''; } catch(e) {}
+try { history = JSON.parse(localStorage.getItem('dpsa_history') || '[]'); } catch(e) {}
+
+// HISTORIQUE
+function saveToHistory() {
+  if (!msgs.length || !vehicle) return;
+  const entry = {
+    id: Date.now(),
+    vehicle: vehicle,
+    date: new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    messages: msgs.map(m => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : '[image + texte]'
+    }))
+  };
+  history.unshift(entry);
+  if (history.length > 50) history = history.slice(0, 50);
+  try { localStorage.setItem('dpsa_history', JSON.stringify(history)); } catch(e) {}
+}
+
+function openHistory() {
+  showHistoryList();
+  document.getElementById('historyOverlay').classList.add('open');
+  document.getElementById('historyPanel').classList.add('open');
+}
+
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('open');
+  document.getElementById('historyPanel').classList.remove('open');
+}
+
+function showHistoryList() {
+  document.getElementById('historyList').style.display = 'flex';
+  document.getElementById('historyDetail').classList.remove('active');
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  if (!history.length) {
+    list.innerHTML = '<div class="history-empty">Aucun diagnostic enregistré</div>';
+    return;
+  }
+  list.innerHTML = history.map((h, i) => `
+    <div class="history-item" onclick="showHistoryDetail(${i})">
+      <div class="history-item-vehicle">${h.vehicle}</div>
+      <div class="history-item-date">${h.date}</div>
+      <div class="history-item-preview">${h.messages.length} messages</div>
+    </div>
+  `).join('');
+}
+
+function showHistoryDetail(index) {
+  const h = history[index];
+  document.getElementById('historyList').style.display = 'none';
+  const detail = document.getElementById('historyDetail');
+  detail.classList.add('active');
+  const content = document.getElementById('historyDetailContent');
+  content.innerHTML = `
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8a020;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #1e2530;">
+      ${h.vehicle}<br><span style="color:#4a5568">${h.date}</span>
+    </div>
+    ${h.messages.map(m => `
+      <div style="display:flex;gap:8px;margin-bottom:10px;${m.role==='user'?'flex-direction:row-reverse':''}">
+        <div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;${m.role==='assistant'?'background:linear-gradient(135deg,#e8a020,#ff6b35);color:#000':'background:#1a2332;border:1px solid #2d3748;color:#64748b'}">${m.role==='assistant'?'AI':'TEC'}</div>
+        <div style="max-width:85%;padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.55;${m.role==='assistant'?'background:#151920;border:1px solid #1e2a38;color:#cbd5e1':'background:#1a3a5c;border:1px solid #1e4a6e;color:#e2e8f0'}">${parseMarkdown(m.content)}</div>
+      </div>
+    `).join('')}
+    <button onclick="deleteHistory(${index})" style="margin-top:12px;background:transparent;border:1px solid #7f1d1d;color:#f87171;font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 12px;border-radius:4px;cursor:pointer;">🗑 Supprimer ce diagnostic</button>
+  `;
+}
+
+function deleteHistory(index) {
+  history.splice(index, 1);
+  try { localStorage.setItem('dpsa_history', JSON.stringify(history)); } catch(e) {}
+  showHistoryList();
+}
 
 function handleImage(e) {
   const file = e.target.files[0];
@@ -467,7 +625,7 @@ async function send() {
   el.value = ''; el.style.height = 'auto';
 
   const isDiag = text.toLowerCase().trim() === 'diag';
-  if (isDiag) { vehicle = ''; updateBanner(''); }
+  if (isDiag) { saveToHistory(); vehicle = ''; updateBanner(''); }
 
   showTyping();
 
