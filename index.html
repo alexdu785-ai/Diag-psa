@@ -451,9 +451,28 @@ function handleImage(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
-    pendingImage = { data: reader.result.split(',')[1], type: file.type };
-    document.getElementById('imgThumb').src = reader.result;
-    document.getElementById('imgPreview').style.display = 'block';
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxDim = 1920;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      let quality = 0.85;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      while (dataUrl.length * 0.75 > 4.5 * 1024 * 1024 && quality > 0.3) {
+        quality -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      pendingImage = { data: dataUrl.split(',')[1], type: 'image/jpeg' };
+      document.getElementById('imgThumb').src = dataUrl;
+      document.getElementById('imgPreview').style.display = 'block';
+    };
+    img.src = reader.result;
   };
   reader.readAsDataURL(file);
   e.target.value = '';
@@ -638,7 +657,17 @@ async function send() {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system: SYSTEM, messages: msgs })
+      body: JSON.stringify({ 
+      model: 'claude-sonnet-4-20250514', 
+      max_tokens: 1024, 
+      system: SYSTEM, 
+      messages: msgs.map(m => ({
+        role: m.role,
+        content: Array.isArray(m.content)
+          ? m.content.map(c => c.type === 'image' ? { type: 'text', text: '[image envoyée précédemment]' } : c)
+          : m.content
+      }))
+    })
     });
 
     const data = await res.json();
